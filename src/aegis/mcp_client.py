@@ -12,16 +12,13 @@ class McpCallResult:
 
 
 class AlpacaMcpClient:
-    """Small JSON-RPC stdio adapter for an Alpaca MCP server process.
-
-    The server command is injected so deployments can use uvx, a local binary,
-    or another approved launcher. Credentials are intentionally not stored here.
-    """
+    """JSON-RPC stdio adapter with MCP initialization and tool discovery."""
 
     def __init__(self, command: Sequence[str] = ("uvx", "alpaca-mcp-server", "serve")) -> None:
         self.command = tuple(command)
         self._process: subprocess.Popen[str] | None = None
         self._request_id = 0
+        self._initialized = False
 
     def start(self) -> None:
         if self._process is not None:
@@ -38,12 +35,15 @@ class AlpacaMcpClient:
     def stop(self) -> None:
         if self._process is not None:
             self._process.terminate()
+            self._process.wait(timeout=5)
             self._process = None
+        self._initialized = False
 
-    def call(self, method: str, params: dict[str, Any] | None = None) -> McpCallResult:
+    def _send(self, method: str, params: dict[str, Any] | None = None) -> McpCallResult:
         self.start()
         if self._process is None or self._process.stdin is None or self._process.stdout is None:
             raise RuntimeError("MCP process is unavailable")
+
         self._request_id += 1
         request = {
             "jsonrpc": "2.0",
@@ -53,10 +53,39 @@ class AlpacaMcpClient:
         }
         self._process.stdin.write(json.dumps(request) + "\n")
         self._process.stdin.flush()
-        line = self._process.stdout.readline()
-        if not line:
-            raise RuntimeError("MCP server closed stdout")
-        response = json.loads(line)
-        if "error" in response:
-            raise RuntimeError(str(response["error"]))
-        return McpCallResult(response)
+
+        while True:
+            line = self._process.stdout.readline()
+            if not line:
+                raise RuntimeError("MCP server closed stdout")
+            response = json.loads(line)
+            # Notifications have no id and are not the response to our request.
+            if response.get("id") != self._request_id:
+                continue
+            if "error" in response:
+                raise RuntimeError(str(response["error"]))
+            return McpCallResult(response)
+
+    def call(self, method: str, params: dict[str, Any] | None = None) -> McpCallResult:
+        """Call an MCP method after initialization."""
+        if method != "initialize" and not self._initialized:
+            self.initialize()
+        return self._send(method, params)
+
+    def initialize(self) -> dict[str, Any]:
+        """Perform the MCP initialization handshake and return server capabilities."""
+        result = self._send(
+            "initialize",
+            {
+                "protocolVersion": "2025-06-18",
+                "capabilities": {},
+                "clientInfo": {"name": "aegis-ai-trader", "version": "0.1.0"},
+            },
+        ).raw["result"]
+        self._send("notifications/initialized")
+        self._initialized = True
+        return result
+
+    def list_tools(self) -> dict[str, Any]:
+        """Return the tools exposed by the configured MCP server."""
+        return self.call("tools/list").raw["result"]
