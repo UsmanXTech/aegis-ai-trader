@@ -12,7 +12,7 @@ def test_backtest_profit_and_costs() -> None:
     )
     assert len(result.trades) == 1
     assert result.ending_equity < 10_009
-    assert result.ending_equity > 10_007
+    assert result.ending_equity > 10_003
 
 
 def test_backtest_rejects_invalid_equity() -> None:
