@@ -35,7 +35,11 @@ class AlpacaMcpClient:
     def stop(self) -> None:
         if self._process is not None:
             self._process.terminate()
-            self._process.wait(timeout=5)
+            try:
+                self._process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.wait(timeout=5)
             self._process = None
         self._initialized = False
 
@@ -45,9 +49,10 @@ class AlpacaMcpClient:
             raise RuntimeError("MCP process is unavailable")
 
         self._request_id += 1
+        request_id = self._request_id
         request = {
             "jsonrpc": "2.0",
-            "id": self._request_id,
+            "id": request_id,
             "method": method,
             "params": params or {},
         }
@@ -59,12 +64,23 @@ class AlpacaMcpClient:
             if not line:
                 raise RuntimeError("MCP server closed stdout")
             response = json.loads(line)
-            # Notifications have no id and are not the response to our request.
-            if response.get("id") != self._request_id:
+            if response.get("id") != request_id:
                 continue
             if "error" in response:
                 raise RuntimeError(str(response["error"]))
             return McpCallResult(response)
+
+    def _notify(self, method: str, params: dict[str, Any] | None = None) -> None:
+        self.start()
+        if self._process is None or self._process.stdin is None:
+            raise RuntimeError("MCP process is unavailable")
+        notification = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+        }
+        self._process.stdin.write(json.dumps(notification) + "\n")
+        self._process.stdin.flush()
 
     def call(self, method: str, params: dict[str, Any] | None = None) -> McpCallResult:
         """Call an MCP method after initialization."""
@@ -82,7 +98,7 @@ class AlpacaMcpClient:
                 "clientInfo": {"name": "aegis-ai-trader", "version": "0.1.0"},
             },
         ).raw["result"]
-        self._send("notifications/initialized")
+        self._notify("notifications/initialized")
         self._initialized = True
         return result
 
