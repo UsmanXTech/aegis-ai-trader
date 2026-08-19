@@ -48,7 +48,10 @@ class PortfolioIntelligence:
             state = PositionState(
                 symbol=position.symbol,
                 entry_debit=entry,
-                current_debit=max(entry - position.unrealized_pnl / max(abs(position.qty), 1), 0.01), 0.01),
+                current_debit=max(
+                    entry - position.unrealized_pnl / max(abs(position.qty), 1),
+                    0.01,
+                ),
                 max_loss=max_loss,
                 max_profit=0.0,
                 days_to_expiration=days,
