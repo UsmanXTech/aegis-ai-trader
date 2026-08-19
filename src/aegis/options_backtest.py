@@ -56,7 +56,9 @@ class OptionsBacktestEngine:
             quote = by_symbol.get(leg.symbol)
             if quote is None:
                 raise ValueError(f"missing historical quote: {leg.symbol}")
-            # Buy at ask, sell at bid, with a deterministic adverse slippage adjustment.
+            if leg.quantity < 1:
+                raise ValueError("leg quantity must be positive")
+            # Buy at ask, sell at bid, with deterministic adverse slippage.
             if leg.side == "buy":
                 price = quote.ask * (1 + self.slippage)
                 value += price * leg.quantity
@@ -66,7 +68,7 @@ class OptionsBacktestEngine:
             else:
                 raise ValueError(f"invalid leg side: {leg.side}")
             contracts += abs(leg.quantity)
-        return value * 100 + contracts * self.commission
+        return round(value * 100 + contracts * self.commission, 2)
 
     def mark_to_mid(self, quotes: Iterable[HistoricalOptionQuote], legs: Iterable[OptionLeg]) -> float:
         by_symbol = {quote.symbol: quote for quote in quotes}
