@@ -1,3 +1,5 @@
+import pytest
+
 from aegis.performance import build_report
 
 
@@ -11,5 +13,5 @@ def test_performance_report() -> None:
     assert report.closed_trades == 3
     assert report.winning_trades == 2
     assert report.losing_trades == 1
-    assert report.win_rate_pct == 200 / 3 * 100
+    assert report.win_rate_pct == pytest.approx(200 / 3 * 100)
     assert report.max_drawdown_pct > 0
