@@ -41,17 +41,20 @@ class PortfolioIntelligence:
         for position in positions:
             total_value += position.market_value
             total_pnl += position.unrealized_pnl
-            total_cost += position.avg_entry_price * abs(position.qty)
+            contract_multiplier = 100
+            total_cost += position.avg_entry_price * abs(position.qty) * contract_multiplier
             entry, max_loss, days = (metadata or {}).get(
                 position.symbol, (position.avg_entry_price, 0.0, 999)
+            )
+            qty = max(abs(position.qty), 1)
+            current_debit = max(
+                entry - position.unrealized_pnl / (qty * contract_multiplier),
+                0.01,
             )
             state = PositionState(
                 symbol=position.symbol,
                 entry_debit=entry,
-                current_debit=max(
-                    entry - position.unrealized_pnl / max(abs(position.qty), 1),
-                    0.01,
-                ),
+                current_debit=current_debit,
                 max_loss=max_loss,
                 max_profit=0.0,
                 days_to_expiration=days,
