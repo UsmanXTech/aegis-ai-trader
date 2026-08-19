@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from alpaca.trading.client import TradingClient
-from alpaca.trading.enums import OrderStatus
-from alpaca.trading.requests import GetOrdersRequest
+from alpaca.trading.enums import OrderClass, OrderSide, OrderStatus, PositionIntent, TimeInForce
+from alpaca.trading.requests import GetOrdersRequest, LimitOrderRequest, OptionLegRequest
 
 from .alpaca_adapter import AccountSnapshot
 
@@ -35,9 +35,35 @@ class AlpacaPaperGateway:
             open_positions=len(positions),
         )
 
+    @staticmethod
+    def to_sdk_request(payload: dict[str, Any]) -> LimitOrderRequest:
+        """Convert Aegis's JSON-compatible MLeg payload into an alpaca-py request."""
+        if payload.get("order_class") != "mleg":
+            raise ValueError("paper gateway currently accepts only MLeg option orders")
+        if payload.get("type") != "limit":
+            raise ValueError("MLeg paper execution currently requires a limit order")
+
+        legs = [
+            OptionLegRequest(
+                symbol=str(leg["symbol"]),
+                ratio_qty=float(leg["ratio_qty"]),
+                side=OrderSide(str(leg["side"]).lower()),
+                position_intent=PositionIntent(str(leg["position_intent"]).lower()),
+            )
+            for leg in payload.get("legs", [])
+        ]
+        return LimitOrderRequest(
+            qty=float(payload["qty"]),
+            limit_price=float(payload["limit_price"]),
+            order_class=OrderClass.MLEG,
+            time_in_force=TimeInForce.DAY,
+            legs=legs,
+        )
+
     def submit_order(self, order_request: Any) -> SubmittedOrder:
         """Submit an already risk-approved request to the paper account."""
-        order = self._client.submit_order(order_data=order_request)
+        request = self.to_sdk_request(order_request) if isinstance(order_request, dict) else order_request
+        order = self._client.submit_order(order_data=request)
         return SubmittedOrder(order_id=str(order.id), status=str(order.status))
 
     def get_order(self, order_id: str) -> Any:
