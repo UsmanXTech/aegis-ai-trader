@@ -21,6 +21,11 @@ def events(
     return store.recent(event_type=event_type, limit=limit)
 
 
+@app.get("/api/v1/account")
+def account(limit: int = Query(default=1, ge=1, le=20)) -> list[dict]:
+    return store.recent(event_type="account", limit=limit)
+
+
 @app.get("/api/v1/decisions")
 def decisions(limit: int = Query(default=50, ge=1, le=500)) -> list[dict]:
     return store.recent(event_type="decision", limit=limit)
