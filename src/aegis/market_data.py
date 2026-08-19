@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime
+import re
 
 from alpaca.data.enums import DataFeed, OptionsFeed
 from alpaca.data.historical.option import OptionHistoricalDataClient
@@ -21,16 +22,17 @@ class UnderlyingSnapshot:
     timestamp: datetime
 
 
+_OCC_SYMBOL_RE = re.compile(r"^(?P<root>[A-Z0-9. ]{1,6})(?P<expiration>\d{6})(?P<type>[CP])(?P<strike>\d{8})$")
+
+
 def _parse_occ_symbol(symbol: str) -> tuple[float, date, str]:
-    """Parse standard 21-character OCC option symbols."""
-    if len(symbol) != 21:
+    """Parse OCC/OSI option symbols with 1-6 character roots."""
+    match = _OCC_SYMBOL_RE.fullmatch(symbol)
+    if match is None:
         raise ValueError(f"unsupported option symbol format: {symbol}")
-    option_type = symbol[12]
-    if option_type not in {"C", "P"}:
-        raise ValueError(f"invalid option type in symbol: {symbol}")
-    expiration = datetime.strptime(symbol[6:12], "%y%m%d").date()
-    strike = int(symbol[13:21]) / 1000
-    return strike, expiration, option_type
+    expiration = datetime.strptime(match.group("expiration"), "%y%m%d").date()
+    strike = int(match.group("strike")) / 1000
+    return strike, expiration, match.group("type")
 
 
 class AlpacaMarketData:
