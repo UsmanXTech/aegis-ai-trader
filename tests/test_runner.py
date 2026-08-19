@@ -8,7 +8,7 @@ from aegis.scanner import UnderlyingSnapshot
 def candidates() -> list[OptionCandidate]:
     return [
         OptionCandidate("SPY260925C00500000", 500, __import__("datetime").date(2026, 9, 25), "call", 5.0, 5.2, 2500, 0.55),
-        OptionCandidate("SPY260925C00505000", 505, __import__("datetime").date(2026, 9, 25), "call", 2.2, 2.4, 2200, 0.35),
+        OptionCandidate("SPY260925C00505000", 505, __import__("datetime").date(2026, 9, 25), "call", 3.4, 3.6, 2200, 0.35),
     ]
 
 
