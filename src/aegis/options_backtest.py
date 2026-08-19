@@ -79,4 +79,4 @@ class OptionsBacktestEngine:
                 raise ValueError(f"missing historical quote: {leg.symbol}")
             sign = 1 if leg.side == "buy" else -1
             value += sign * quote.midpoint * leg.quantity * 100
-        return value
+        return round(value, 2)
