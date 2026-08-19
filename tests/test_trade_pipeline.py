@@ -36,7 +36,7 @@ def test_pipeline_builds_approved_paper_payload() -> None:
     )
     prepared = TradePipeline().prepare_spread(
         decision,
-        [c("C100", 100, "call", 5.0, 5.2), c("C105", 105, "call", 2.8, 3.0)],
+        [c("C100", 100, "call", 5.0, 5.2), c("C105", 105, "call", 3.4, 3.6)],
         underlying_price=103,
         account_equity=10_000,
         portfolio_risk_pct=0,
@@ -64,7 +64,7 @@ def test_pipeline_refuses_rejected_decision() -> None:
     with pytest.raises(ValueError, match="risk engine"):
         TradePipeline().prepare_spread(
             decision,
-            [c("C100", 100, "call", 5.0, 5.2), c("C105", 105, "call", 2.8, 3.0)],
+            [c("C100", 100, "call", 5.0, 5.2), c("C105", 105, "call", 3.4, 3.6)],
             underlying_price=103,
             account_equity=10_000,
             portfolio_risk_pct=0,
