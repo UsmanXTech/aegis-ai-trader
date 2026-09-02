@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 from .alpaca_historical import AlpacaHistoricalOptionsClient
-from .options_backtest import HistoricalOptionQuote
 
 
 def build_dataset(
@@ -14,14 +14,16 @@ def build_dataset(
     output: str | Path,
     *,
     feed: str = "indicative",
+    underlying_price_resolver: Callable[[str, str], float],
 ) -> int:
-    """Fetch option quotes and write the canonical Aegis CSV.
-
-    Underlying prices must be supplied by the upstream adapter; this builder
-    refuses quotes that have no usable underlying price because the backtester
-    relies on that field for chain/risk analysis.
-    """
-    quotes = client.historical_quotes(symbols, start, end, feed=feed)
+    """Fetch option quotes and write the canonical Aegis CSV."""
+    quotes = client.historical_quotes(
+        symbols,
+        start,
+        end,
+        feed=feed,
+        underlying_price_resolver=underlying_price_resolver,
+    )
     valid = [q for q in quotes if q.underlying_price > 0]
     if not valid:
         raise ValueError("no quotes with usable underlying prices were returned")
